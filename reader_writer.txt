@@ -1,0 +1,102 @@
+#include <iostream>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+using namespace std;
+
+int data = 0;
+int read_count = 0;
+
+pthread_mutex_t mutex;
+sem_t wrt;
+
+void* reader_sync(void* arg) {
+    int id = *((int*)arg);
+
+    pthread_mutex_lock(&mutex);
+    read_count++;
+    if (read_count == 1)
+        sem_wait(&wrt);
+    pthread_mutex_unlock(&mutex);
+
+    cout << "🔒 Reader " << id << " is reading data = " << data << endl;
+    sleep(1);
+
+    pthread_mutex_lock(&mutex);
+    read_count--;
+    if (read_count == 0)
+        sem_post(&wrt);
+    pthread_mutex_unlock(&mutex);
+
+    return nullptr;
+}
+
+void* writer_sync(void* arg) {
+    int id = *((int*)arg);
+
+    sem_wait(&wrt);
+    data += 10;
+    cout << "🔒 Writer " << id << " wrote data = " << data << endl;
+    sleep(1);
+    sem_post(&wrt);
+
+    return nullptr;
+}
+
+void* reader_no_sync(void* arg) {
+    int id = *((int*)arg);
+    cout << "❌ Reader " << id << " is reading data = " << data << endl;
+    sleep(1);
+    return nullptr;
+}
+
+void* writer_no_sync(void* arg) {
+    int id = *((int*)arg);
+    data += 10;
+    cout << "❌ Writer " << id << " wrote data = " << data << endl;
+    sleep(1);
+    return nullptr;
+}
+
+int main() {
+    int choice;
+    pthread_t readers[5], writers[5];
+    int ids[5] = {1, 2, 3, 4, 5};
+
+    cout << "==== Reader-Writer Problem with Switch Menu ====\n";
+    cout << "1. Run WITHOUT Synchronization\n";
+    cout << "2. Run WITH Synchronization\n";
+    cout << "Enter your choice: ";
+    cin >> choice;
+
+    if (choice == 2) {
+        pthread_mutex_init(&mutex, nullptr);
+        sem_init(&wrt, 0, 1);
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        if (choice == 1) {
+            pthread_create(&writers[i], nullptr, writer_no_sync, &ids[i]);
+            pthread_create(&readers[i], nullptr, reader_no_sync, &ids[i]);
+        } else if (choice == 2) {
+            pthread_create(&writers[i], nullptr, writer_sync, &ids[i]);
+            pthread_create(&readers[i], nullptr, reader_sync, &ids[i]);
+        } else {
+            cout << "Invalid choice!" << endl;
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        pthread_join(writers[i], nullptr);
+        pthread_join(readers[i], nullptr);
+    }
+
+    if (choice == 2) {
+        pthread_mutex_destroy(&mutex);
+        sem_destroy(&wrt);
+    }
+
+    return 0;
+}
