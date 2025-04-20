@@ -1,0 +1,138 @@
+#include <iostream> 
+#include <vector> 
+#include <limits> 
+using namespace std; 
+ 
+struct Process { 
+    int size; 
+    int allocatedBlock = -1; // -1 means not allocated 
+}; 
+ 
+void firstFit(vector<int> blocks, vector<Process>& processes) { 
+    for (int i = 0; i < processes.size(); ++i) { 
+        for (int j = 0; j < blocks.size(); ++j) { 
+            if (blocks[j] >= processes[i].size) { 
+                processes[i].allocatedBlock = j; 
+                blocks[j] -= processes[i].size; 
+                break; 
+            } 
+        } 
+    } 
+} 
+ 
+void bestFit(vector<int> blocks, vector<Process>& processes) { 
+    for (int i = 0; i < processes.size(); ++i) { 
+        int bestIdx = -1; 
+        int minWaste = numeric_limits<int>::max(); 
+        for (int j = 0; j < blocks.size(); ++j) { 
+            if (blocks[j] >= processes[i].size && (blocks[j] - processes[i].size) < minWaste) { 
+                minWaste = blocks[j] - processes[i].size; 
+                bestIdx = j; 
+            } 
+        } 
+        if (bestIdx != -1) { 
+            processes[i].allocatedBlock = bestIdx; 
+            blocks[bestIdx] -= processes[i].size; 
+        } 
+    } 
+} 
+ 
+void nextFit(vector<int> blocks, vector<Process>& processes) { 
+    int lastIndex = 0; 
+    int n = blocks.size(); 
+    for (int i = 0; i < processes.size(); ++i) { 
+        int count = 0; 
+        while (count < n) { 
+            int j = (lastIndex + count) % n; 
+            if (blocks[j] >= processes[i].size) { 
+                processes[i].allocatedBlock = j; 
+                blocks[j] -= processes[i].size; 
+                lastIndex = j; 
+                break; 
+            } 
+            count++; 
+        } 
+    } 
+} 
+ 
+void worstFit(vector<int> blocks, vector<Process>& processes) { 
+    for (int i = 0; i < processes.size(); ++i) { 
+        int worstIdx = -1; 
+        int maxWaste = -1; 
+        for (int j = 0; j < blocks.size(); ++j) { 
+            if (blocks[j] >= processes[i].size && (blocks[j] - processes[i].size) > maxWaste) { 
+                maxWaste = blocks[j] - processes[i].size; 
+                worstIdx = j; 
+            } 
+        } 
+        if (worstIdx != -1) { 
+            processes[i].allocatedBlock = worstIdx; 
+            blocks[worstIdx] -= processes[i].size; 
+        } 
+    } 
+} 
+ 
+void displayAllocation(const vector<Process>& processes) { 
+    cout << "\nProcess No\tProcess Size\tBlock No\n"; 
+    for (int i = 0; i < processes.size(); ++i) { 
+        cout << i + 1 << "\t\t" << processes[i].size << "\t\t"; 
+        if (processes[i].allocatedBlock != -1) 
+            cout << processes[i].allocatedBlock + 1 << "\n"; 
+        else 
+            cout << "Not Allocated\n"; 
+    } 
+} 
+ 
+int main() { 
+    int nBlocks, nProcesses; 
+    cout << "Enter number of memory blocks: "; 
+    cin >> nBlocks; 
+    vector<int> blocks(nBlocks); 
+    cout << "Enter size of each block:\n"; 
+    for (int i = 0; i < nBlocks; ++i) { 
+        cout << "Block " << i + 1 << ": "; 
+        cin >> blocks[i]; 
+    } 
+ 
+    cout << "\nEnter number of processes: "; 
+    cin >> nProcesses; 
+    vector<Process> processes(nProcesses); 
+    for (int i = 0; i < nProcesses; ++i) { 
+        cout << "Process " << i + 1 << " size: "; 
+        cin >> processes[i].size; 
+    } 
+ 
+    int choice; 
+    cout << "\nChoose Allocation Method:\n"; 
+    cout << "1. First Fit\n2. Best Fit\n3. Next Fit\n4. Worst Fit\nEnter choice: "; 
+    cin >> choice; 
+ 
+    vector<int> originalBlocks = blocks; // preserve original block sizes 
+ 
+    switch (choice) { 
+        case 1: 
+            firstFit(blocks, processes); 
+            break; 
+        case 2: 
+            bestFit(blocks, processes); 
+            break; 
+        case 3: 
+            nextFit(blocks, processes); 
+            break; 
+        case 4: 
+            worstFit(blocks, processes); 
+            break; 
+        default: 
+            cout << "Invalid choice.\n"; 
+            return 0; 
+    } 
+ 
+    displayAllocation(processes); 
+ 
+    return 0; 
+} 
+ 
+ 
+ 
+ 
+ 
