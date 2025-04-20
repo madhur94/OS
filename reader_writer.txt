@@ -100,3 +100,107 @@ int main() {
 
     return 0;
 }
+
+
+
+
+
+
+
+#include <iostream>
+#include <pthread.h>
+#include <unistd.h>
+#include <cstdlib>
+
+using namespace std;
+
+int data = 0;
+int readCount = 0;
+pthread_mutex_t mutexLock;
+pthread_mutex_t writeLock;
+
+void* unsyncedReader(void* arg) {
+    int id = *((int*)arg);
+    usleep(rand() % 500000); // Random delay
+    cout << "❌ [UNSYNCED] Reader " << id << " is reading data = " << data << endl;
+    return nullptr;
+}
+
+void* unsyncedWriter(void* arg) {
+    int id = *((int*)arg);
+    data = rand() % 100;
+    usleep(rand() % 500000); // Random delay
+    cout << "❌ [UNSYNCED] Writer " << id << " wrote data = " << data << endl;
+    return nullptr;
+}
+
+void* syncedReader(void* arg) {
+    int id = *((int*)arg);
+    usleep(rand() % 500000); // Random delay
+    pthread_mutex_lock(&mutexLock);
+    readCount++;
+    if (readCount == 1)
+        pthread_mutex_lock(&writeLock); // First reader locks the writer
+    pthread_mutex_unlock(&mutexLock);
+
+    cout << "🔒 [SYNCED] Reader " << id << " is reading data = " << data << endl;
+
+    pthread_mutex_lock(&mutexLock);
+    readCount--;
+    if (readCount == 0)
+        pthread_mutex_unlock(&writeLock); // Last reader unlocks the writer
+    pthread_mutex_unlock(&mutexLock);
+    return nullptr;
+}
+
+void* syncedWriter(void* arg) {
+    int id = *((int*)arg);
+    usleep(rand() % 500000); // Random delay
+    pthread_mutex_lock(&writeLock);
+    data = rand() % 100;
+    cout << "🔒 [SYNCED] Writer " << id << " wrote data = " << data << endl;
+    pthread_mutex_unlock(&writeLock);
+    return nullptr;
+}
+
+int main() {
+    srand(time(0));
+    pthread_t readers[3], writers[2];
+    int ids[] = {1, 2, 3};
+
+    pthread_mutex_init(&mutexLock, nullptr);
+    pthread_mutex_init(&writeLock, nullptr);
+
+    cout << "\n=== ❌ WITHOUT SYNCHRONIZATION ===\n";
+    pthread_create(&writers[0], nullptr, unsyncedWriter, &ids[0]);
+    pthread_create(&readers[0], nullptr, unsyncedReader, &ids[0]);
+    pthread_create(&writers[1], nullptr, unsyncedWriter, &ids[1]);
+    pthread_create(&readers[1], nullptr, unsyncedReader, &ids[1]);
+    pthread_create(&readers[2], nullptr, unsyncedReader, &ids[2]);
+
+    for (int i = 0; i < 2; i++)
+        pthread_join(writers[i], nullptr);
+    for (int i = 0; i < 3; i++)
+        pthread_join(readers[i], nullptr);
+
+    sleep(1); // Separate output
+
+    cout << "\n=== 🔒 WITH SYNCHRONIZATION ===\n";
+    pthread_create(&writers[0], nullptr, syncedWriter, &ids[0]);
+    pthread_create(&readers[0], nullptr, syncedReader, &ids[0]);
+    pthread_create(&writers[1], nullptr, syncedWriter, &ids[1]);
+    pthread_create(&readers[1], nullptr, syncedReader, &ids[1]);
+    pthread_create(&readers[2], nullptr, syncedReader, &ids[2]);
+
+    for (int i = 0; i < 2; i++)
+        pthread_join(writers[i], nullptr);
+    for (int i = 0; i < 3; i++)
+        pthread_join(readers[i], nullptr);
+
+    pthread_mutex_destroy(&mutexLock);
+    pthread_mutex_destroy(&writeLock);
+
+    return 0;
+}
+
+
